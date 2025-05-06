@@ -10,4 +10,4 @@ COPY . .
 # 自動複製 .env.sample 成 .env（供 Fastify 使用）
 RUN cp .env.sample .env
 
-CMD ["npm", "run", "dev"]
+CMD ["npm", "run", "build"]

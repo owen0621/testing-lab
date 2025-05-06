@@ -3,5 +3,9 @@
     "fabonacci",
     "fastify",
     "todos"
-  ]
+  ],
+  "yaml.schemas": {
+    "https://raw.githubusercontent.com/rancher/k3d/main/pkg/config/config.versions.schema.json": "file:///workspaces/testing-lab/k8s/deploys.yaml",
+    "https://d1uauaxba7bl26.cloudfront.net/latest/gzip/CloudFormationResourceSpecification.json": "file:///workspaces/testing-lab/k8s/services.yaml"
+  }
 }
