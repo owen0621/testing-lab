@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
@@ -79,9 +81,49 @@ jobs:
         run: |
           COVERAGE=$(jq '.total.statements.pct' backend/coverage/coverage-summary.json)
           echo "backend $COVERAGE" > previous-coverage.txt
-          # 暫存 coverage 檔案
+        
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: backend/coverage/
+          
+      - name: Upload coverage to artifacts branch
+        run: |
+          git config user.name "github-actions"
+          git config user.email "action@github.com"
+
+          # 儲存原本的 branch（例：main、feature-xxx）
+          ORIGINAL_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          echo "Current branch is $ORIGINAL_BRANCH"
+
+          git fetch origin artifacts || true
+
+          # 暫存檔案
           mv previous-coverage.txt /tmp/previous-coverage.txt
 
+          # 切換或建立 artifacts 分支
+          if git ls-remote --exit-code origin artifacts; then
+            git switch -c artifacts origin/artifacts
+          else
+            git switch --orphan artifacts
+            git rm -rf . || true
+          fi
+          git clean -fdx
+
+          # 還原 coverage 並 commit/push
+          mv /tmp/previous-coverage.txt ./previous-coverage.txt
+
+          git add previous-coverage.txt
+          if git diff --cached --quiet; then
+            echo "✅ previous-coverage.txt unchanged, skipping commit"
+          else
+            git commit -m "Update coverage for $GITHUB_SHA"
+            git push --force origin artifacts
+          fi
+
+          # 切回原本的分支
+          git switch "$ORIGINAL_BRANCH"
 
       - name: Format and commit backend/frontend code
         run: |
@@ -93,6 +135,7 @@ jobs:
           if [ -n "$FILES" ]; then
             echo "$FILES" | xargs npx prettier --check
             if [ $? -ne 0 ]; then
+              echo "Formatting backend files..."
               echo "$FILES" | xargs npx prettier --write
               git add $FILES
               git commit -m "Auto-format backend files"
@@ -106,35 +149,10 @@ jobs:
           if [ -n "$FILES" ]; then
             echo "$FILES" | xargs npx prettier --check
             if [ $? -ne 0 ]; then
+              echo "Formatting frontend files..."
               echo "$FILES" | xargs npx prettier --write
               git add $FILES
               git commit -m "Auto-format frontend files"
               git push
             fi
           fi
-
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: backend/coverage/
-
-      - name: Upload coverage to artifacts branch
-        run: |
-          git config user.name "github-actions"
-          git config user.email "action@github.com"
-          git fetch origin artifacts || true
-
-          # 切換到 artifacts 分支（存在則 checkout，不存在則用 orphan 建立）
-          if git ls-remote --exit-code origin artifacts; then
-            git switch -c artifacts origin/artifacts
-          else
-            git switch --orphan artifacts
-            git rm -rf . || true
-          fi
-
-          # 還原 coverage 檔案，並 commit 到 artifacts
-          mv /tmp/previous-coverage.txt ./previous-coverage.txt
-          git add previous-coverage.txt
-          git commit -m "Update coverage for $GITHUB_SHA"
-          git push --force origin artifacts
