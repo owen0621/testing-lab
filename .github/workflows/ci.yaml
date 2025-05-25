@@ -73,13 +73,13 @@ jobs:
       - name: Save current backend coverage
         run: |
           COVERAGE=$(jq '.total.statements.pct' backend/coverage/coverage-summary.json)
-          echo "backend $COVERAGE" > previous_coverage.txt
+          echo "backend $COVERAGE" > previous-coverage.txt
 
       - name: Upload current coverage for next CI
         uses: actions/upload-artifact@v4
         with:
           name: previous-coverage
-          path: previous_coverage.txt
+          path: previous-coverage.txt
 
       - name: Format and commit backend/frontend code
         run: |
