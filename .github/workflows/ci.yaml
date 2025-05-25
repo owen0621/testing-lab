@@ -37,11 +37,13 @@ jobs:
           cd backend
           npm run coverage
 
-      - name: Download previous coverage
-        uses: actions/download-artifact@v4
-        with:
-          name: previous-coverage
-        continue-on-error: true
+      - name: Retrieve previous coverage from artifacts branch
+        run: |
+          git fetch origin artifacts || echo "artifacts branch not found"
+          mkdir -p tmp-artifacts
+          if git ls-remote --exit-code origin artifacts; then
+            git show origin/artifacts:previous-coverage.txt > tmp-artifacts/previous-coverage.txt || echo "No previous coverage file found"
+          fi
 
       - name: Check coverage
         run: |
@@ -52,13 +54,13 @@ jobs:
             exit 1
           fi
 
-          if [ ! -f previous-coverage.txt ]; then
+          if [ ! -f tmp-artifacts/previous-coverage.txt ]; then
             echo "⚠️ No previous coverage file found. Skipping comparison."
             exit 0
           fi
 
           BACKEND_COVERAGE=$(jq '.total.statements.pct' backend/coverage/coverage-summary.json)
-          PREVIOUS_BACKEND_COVERAGE=$(grep backend previous_coverage.txt | cut -d' ' -f2)
+          PREVIOUS_BACKEND_COVERAGE=$(grep backend tmp-artifacts/previous-coverage.txt | cut -d' ' -f2)
 
           echo "Current backend coverage: $BACKEND_COVERAGE"
           echo "Previous backend coverage: $PREVIOUS_BACKEND_COVERAGE"
@@ -75,11 +77,24 @@ jobs:
           COVERAGE=$(jq '.total.statements.pct' backend/coverage/coverage-summary.json)
           echo "backend $COVERAGE" > previous-coverage.txt
 
-      - name: Upload current coverage for next CI
-        uses: actions/upload-artifact@v4
-        with:
-          name: previous-coverage
-          path: previous-coverage.txt
+      - name: Upload coverage to artifacts branch
+        run: |
+          git config user.name "github-actions"
+          git config user.email "action@github.com"
+          git fetch origin artifacts || true
+
+          # Create or update artifacts branch with coverage file
+          if git ls-remote --exit-code origin artifacts; then
+            git switch -c artifacts origin/artifacts
+          else
+            git switch --orphan artifacts
+            git rm -rf . || true
+          fi
+
+          mv previous-coverage.txt ./previous-coverage.txt
+          git add previous-coverage.txt
+          git commit -m "Update coverage for $GITHUB_SHA"
+          git push --force origin artifacts
 
       - name: Format and commit backend/frontend code
         run: |
@@ -110,7 +125,6 @@ jobs:
               git push
             fi
           fi
-
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
