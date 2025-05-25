@@ -37,40 +37,78 @@ jobs:
           cd backend
           npm run coverage
 
+      - name: Download previous coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: previous-coverage
+        continue-on-error: true  # 防止第一次沒有 artifact 導致錯誤中斷
+
       - name: Check coverage
         run: |
-          # Assuming coverage reports are stored in coverage/ directory
-          # and previous coverage is stored in a file
-          BACKEND_COVERAGE=$(cat backend/coverage/coverage.txt | grep -o '[0-9]*\.[0-9]*' | head -n 1)
-          FRONTEND_COVERAGE=$(cat frontend/coverage/coverage.txt | grep -o '[0-9]*\.[0-9]*' | head -n 1)
-          PREVIOUS_BACKEND_COVERAGE=$(cat previous_coverage.txt | grep backend | cut -d' ' -f2)
-          PREVIOUS_FRONTEND_COVERAGE=$(cat previous_coverage.txt | grep frontend | cut -d' ' -f2)
+          echo "Checking backend coverage..."
 
-          if (( $(echo "$BACKEND_COVERAGE < $PREVIOUS_BACKEND_COVERAGE" | bc -l) )); then
-            echo "Backend coverage decreased: $BACKEND_COVERAGE < $PREVIOUS_BACKEND_COVERAGE"
+          if [ ! -f backend/coverage/coverage.txt ]; then
+            echo "Current coverage file not found!"
             exit 1
           fi
 
+          if [ ! -f previous_coverage.txt ]; then
+            echo "No previous coverage file found. Skipping comparison."
+            exit 0
+          fi
+
+          BACKEND_COVERAGE=$(grep -o '[0-9]*\.[0-9]*' backend/coverage/coverage.txt | head -n 1)
+          PREVIOUS_BACKEND_COVERAGE=$(grep backend previous_coverage.txt | cut -d' ' -f2)
+
+          echo "Current backend coverage: $BACKEND_COVERAGE"
+          echo "Previous backend coverage: $PREVIOUS_BACKEND_COVERAGE"
+
+          if awk "BEGIN {exit !($BACKEND_COVERAGE < $PREVIOUS_BACKEND_COVERAGE)}"; then
+            echo "❌ Backend coverage decreased: $BACKEND_COVERAGE < $PREVIOUS_BACKEND_COVERAGE"
+            exit 1
+          else
+            echo "✅ Coverage is acceptable."
+          fi
+
+      - name: Save current coverage for next run
+        run: |
+          BACKEND_COVERAGE=$(grep -o '[0-9]*\.[0-9]*' backend/coverage/coverage.txt | head -n 1)
+          echo "backend $BACKEND_COVERAGE" > previous_coverage.txt
+
+      - name: Upload previous coverage for future CI
+        uses: actions/upload-artifact@v4
+        with:
+          name: previous-coverage
+          path: previous_coverage.txt
 
       - name: Format code
         run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
           cd backend
-          npx prettier --check .
-          if [ $? -ne 0 ]; then
-            npx prettier --write .
-            git config --local user.email "action@github.com"
-            git config --local user.name "GitHub Action"
-            git add .
-            git commit -m "Format code"
+          FILES=$(git diff --name-only origin/main | grep -E '\.(js|ts|jsx|tsx|json|css|scss|html|md|yml)$' || true)
+          if [ -n "$FILES" ]; then
+            echo "$FILES" | xargs npx prettier --check
+            if [ $? -ne 0 ]; then
+              echo "$FILES" | xargs npx prettier --write
+              git add $FILES
+              git commit -m "Auto-format backend files"
+              git push
+            fi
           fi
-          cd ../frontend
-          npx prettier --check .
-          if [ $? -ne 0 ]; then
-            npx prettier --write .
-            git config --local user.email "action@github.com"
-            git config --local user.name "GitHub Action"
-            git add .
-            git commit -m "Format code"
+          cd ..
+
+          cd frontend
+          FILES=$(git diff --name-only origin/main | grep -E '\.(js|ts|jsx|tsx|json|css|scss|html|md|yml)$' || true)
+          if [ -n "$FILES" ]; then
+            echo "$FILES" | xargs npx prettier --check
+            if [ $? -ne 0 ]; then
+              echo "$FILES" | xargs npx prettier --write
+              git add $FILES
+              git commit -m "Auto-format frontend files"
+              git push
+            fi
           fi
 
       - name: Upload coverage report
