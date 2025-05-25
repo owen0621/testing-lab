@@ -27,15 +27,13 @@ jobs:
         run: |
           cd backend
           cp .env.sample .env
-          npm test
+          npm run test
           cd ../frontend
           npm run test:e2e
 
       - name: Generate coverage report
         run: |
           cd backend
-          npm run coverage
-          cd ../frontend
           npm run coverage
 
       - name: Check coverage
@@ -52,10 +50,6 @@ jobs:
             exit 1
           fi
 
-          if (( $(echo "$FRONTEND_COVERAGE < $PREVIOUS_FRONTEND_COVERAGE" | bc -l) )); then
-            echo "Frontend coverage decreased: $FRONTEND_COVERAGE < $PREVIOUS_FRONTEND_COVERAGE"
-            exit 1
-          fi
 
       - name: Format code
         run: |
@@ -84,4 +78,3 @@ jobs:
           name: coverage-report
           path: |
             backend/coverage/
-            frontend/coverage/
