@@ -103,20 +103,22 @@ jobs:
           # 切換或建立 artifacts 分支
           if git ls-remote --exit-code origin artifacts; then
             git switch -c artifacts origin/artifacts
-            git clean -fdx
           else
             git switch --orphan artifacts
             git rm -rf . || true
-            git clean -fdx
           fi
+          git clean -fdx
 
           # 還原 coverage 並 commit/push
-          ls
-          git branch|cat
           mv /tmp/previous-coverage.txt ./previous-coverage.txt
+
           git add previous-coverage.txt
-          git commit -m "Update coverage for $GITHUB_SHA"
-          git push --force origin artifacts
+          if git diff --cached --quiet; then
+            echo "✅ previous-coverage.txt unchanged, skipping commit"
+          else
+            git commit -m "Update coverage for $GITHUB_SHA"
+            git push --force origin artifacts
+          fi
 
           # 切回原本的分支
           git switch "$ORIGINAL_BRANCH"
@@ -131,6 +133,7 @@ jobs:
           if [ -n "$FILES" ]; then
             echo "$FILES" | xargs npx prettier --check
             if [ $? -ne 0 ]; then
+              echo "Formatting backend files..."
               echo "$FILES" | xargs npx prettier --write
               git add $FILES
               git commit -m "Auto-format backend files"
@@ -144,6 +147,7 @@ jobs:
           if [ -n "$FILES" ]; then
             echo "$FILES" | xargs npx prettier --check
             if [ $? -ne 0 ]; then
+              echo "Formatting frontend files..."
               echo "$FILES" | xargs npx prettier --write
               git add $FILES
               git commit -m "Auto-format frontend files"
