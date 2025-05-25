@@ -103,13 +103,14 @@ jobs:
           # 切換或建立 artifacts 分支
           if git ls-remote --exit-code origin artifacts; then
             git switch -c artifacts origin/artifacts
-            git rm -rf . || true
           else
             git switch --orphan artifacts
             git rm -rf . || true
           fi
 
           # 還原 coverage 並 commit/push
+          ls
+          git branch|cat
           mv /tmp/previous-coverage.txt ./previous-coverage.txt
           git add previous-coverage.txt
           git commit -m "Update coverage for $GITHUB_SHA"
