@@ -83,7 +83,10 @@ jobs:
           git config user.email "action@github.com"
           git fetch origin artifacts || true
 
-          # Create or update artifacts branch with coverage file
+          # 暫存 coverage 檔案
+          mv previous-coverage.txt /tmp/previous-coverage.txt
+
+          # 切換到 artifacts 分支（存在則 checkout，不存在則用 orphan 建立）
           if git ls-remote --exit-code origin artifacts; then
             git switch -c artifacts origin/artifacts
           else
@@ -91,7 +94,8 @@ jobs:
             git rm -rf . || true
           fi
 
-          mv previous-coverage.txt ./previous-coverage.txt
+          # 還原 coverage 檔案，並 commit 到 artifacts
+          mv /tmp/previous-coverage.txt ./previous-coverage.txt
           git add previous-coverage.txt
           git commit -m "Update coverage for $GITHUB_SHA"
           git push --force origin artifacts
