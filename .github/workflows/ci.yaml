@@ -79,6 +79,8 @@ jobs:
         run: |
           COVERAGE=$(jq '.total.statements.pct' backend/coverage/coverage-summary.json)
           echo "backend $COVERAGE" > previous-coverage.txt
+          # 暫存 coverage 檔案
+          mv previous-coverage.txt /tmp/previous-coverage.txt
 
 
       - name: Format and commit backend/frontend code
@@ -122,9 +124,6 @@ jobs:
           git config user.name "github-actions"
           git config user.email "action@github.com"
           git fetch origin artifacts || true
-
-          # 暫存 coverage 檔案
-          mv previous-coverage.txt /tmp/previous-coverage.txt
 
           # 切換到 artifacts 分支（存在則 checkout，不存在則用 orphan 建立）
           if git ls-remote --exit-code origin artifacts; then
