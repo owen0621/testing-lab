@@ -22,7 +22,7 @@ jobs:
           npm install
           cd ../frontend
           npm install
-          npx playwright install
+          npx playwright install chromium
 
       - name: Run unit tests
         run: |
