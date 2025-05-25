@@ -7,7 +7,9 @@ RUN npm install
 
 COPY . .
 
+RUN npm run build
+
 # 自動複製 .env.sample 成 .env（供 Fastify 使用）
 RUN cp .env.sample .env
 
-CMD ["npm", "run", "build"]
+CMD ["npm", "run", "start"]
