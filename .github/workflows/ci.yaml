@@ -52,7 +52,7 @@ jobs:
             exit 1
           fi
 
-          if [ ! -f previous_coverage.txt ]; then
+          if [ ! -f previous-coverage.txt ]; then
             echo "⚠️ No previous coverage file found. Skipping comparison."
             exit 0
           fi
