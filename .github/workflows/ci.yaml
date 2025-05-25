@@ -3,6 +3,9 @@ name: CI
 on:
   push:
 
+permissions:
+  contents: write  # 這一行很重要，否則 github-actions 沒權限 push
+
 jobs:
   test:
     runs-on: ubuntu-latest
