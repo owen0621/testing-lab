@@ -24,15 +24,15 @@ jobs:
           npm install
           npx playwright install chromium
 
-      - name: Run unit tests
+      - name: Run unit and E2E tests
         run: |
           cd backend
           cp .env.sample .env
           npm run test
           cd ../frontend
-          npm run test:e2e
+          npm run test:e2e --project=chromium
 
-      - name: Generate coverage report
+      - name: Generate backend coverage report
         run: |
           cd backend
           npm run coverage
@@ -41,23 +41,23 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: previous-coverage
-        continue-on-error: true  # 防止第一次沒有 artifact 導致錯誤中斷
+        continue-on-error: true
 
       - name: Check coverage
         run: |
           echo "Checking backend coverage..."
 
-          if [ ! -f backend/coverage/coverage.txt ]; then
-            echo "Current coverage file not found!"
+          if [ ! -f backend/coverage/coverage-summary.json ]; then
+            echo "❌ coverage-summary.json not found!"
             exit 1
           fi
 
           if [ ! -f previous_coverage.txt ]; then
-            echo "No previous coverage file found. Skipping comparison."
+            echo "⚠️ No previous coverage file found. Skipping comparison."
             exit 0
           fi
 
-          BACKEND_COVERAGE=$(grep -o '[0-9]*\.[0-9]*' backend/coverage/coverage.txt | head -n 1)
+          BACKEND_COVERAGE=$(jq '.total.statements.pct' backend/coverage/coverage-summary.json)
           PREVIOUS_BACKEND_COVERAGE=$(grep backend previous_coverage.txt | cut -d' ' -f2)
 
           echo "Current backend coverage: $BACKEND_COVERAGE"
@@ -70,18 +70,18 @@ jobs:
             echo "✅ Coverage is acceptable."
           fi
 
-      - name: Save current coverage for next run
+      - name: Save current backend coverage
         run: |
-          BACKEND_COVERAGE=$(grep -o '[0-9]*\.[0-9]*' backend/coverage/coverage.txt | head -n 1)
-          echo "backend $BACKEND_COVERAGE" > previous_coverage.txt
+          COVERAGE=$(jq '.total.statements.pct' backend/coverage/coverage-summary.json)
+          echo "backend $COVERAGE" > previous_coverage.txt
 
-      - name: Upload previous coverage for future CI
+      - name: Upload current coverage for next CI
         uses: actions/upload-artifact@v4
         with:
           name: previous-coverage
           path: previous_coverage.txt
 
-      - name: Format code
+      - name: Format and commit backend/frontend code
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
@@ -115,5 +115,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: |
-            backend/coverage/
+          path: backend/coverage/
