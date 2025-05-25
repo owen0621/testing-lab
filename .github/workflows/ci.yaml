@@ -79,8 +79,6 @@ jobs:
         run: |
           COVERAGE=$(jq '.total.statements.pct' backend/coverage/coverage-summary.json)
           echo "backend $COVERAGE" > previous-coverage.txt
-          # 暫存 coverage 檔案
-          mv previous-coverage.txt /tmp/previous-coverage.txt
           
       - name: Upload coverage to artifacts branch
         run: |
