@@ -103,9 +103,11 @@ jobs:
           # 切換或建立 artifacts 分支
           if git ls-remote --exit-code origin artifacts; then
             git switch -c artifacts origin/artifacts
+            git clean -fdx
           else
             git switch --orphan artifacts
             git rm -rf . || true
+            git clean -fdx
           fi
 
           # 還原 coverage 並 commit/push
