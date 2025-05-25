@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          npm install
+          cd ../frontend
+          npm install
+
+      - name: Run unit tests
+        run: |
+          cd backend
+          npm test
+          cd ../frontend
+          npm test
+
+      - name: Generate coverage report
+        run: |
+          cd backend
+          npm run coverage
+          cd ../frontend
+          npm run coverage
+
+      - name: Check coverage
+        run: |
+          # Assuming coverage reports are stored in coverage/ directory
+          # and previous coverage is stored in a file
+          BACKEND_COVERAGE=$(cat backend/coverage/coverage.txt | grep -o '[0-9]*\.[0-9]*' | head -n 1)
+          FRONTEND_COVERAGE=$(cat frontend/coverage/coverage.txt | grep -o '[0-9]*\.[0-9]*' | head -n 1)
+          PREVIOUS_BACKEND_COVERAGE=$(cat previous_coverage.txt | grep backend | cut -d' ' -f2)
+          PREVIOUS_FRONTEND_COVERAGE=$(cat previous_coverage.txt | grep frontend | cut -d' ' -f2)
+
+          if (( $(echo "$BACKEND_COVERAGE < $PREVIOUS_BACKEND_COVERAGE" | bc -l) )); then
+            echo "Backend coverage decreased: $BACKEND_COVERAGE < $PREVIOUS_BACKEND_COVERAGE"
+            exit 1
+          fi
+
+          if (( $(echo "$FRONTEND_COVERAGE < $PREVIOUS_FRONTEND_COVERAGE" | bc -l) )); then
+            echo "Frontend coverage decreased: $FRONTEND_COVERAGE < $PREVIOUS_FRONTEND_COVERAGE"
+            exit 1
+          fi
+
+      - name: Format code
+        run: |
+          cd backend
+          npx prettier --check .
+          if [ $? -ne 0 ]; then
+            npx prettier --write .
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            git add .
+            git commit -m "Format code"
+          fi
+          cd ../frontend
+          npx prettier --check .
+          if [ $? -ne 0 ]; then
+            npx prettier --write .
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            git add .
+            git commit -m "Format code"
+          fi
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v2
+        with:
+          name: coverage-report
+          path: |
+            backend/coverage/
+            frontend/coverage/
